@@ -13,17 +13,13 @@ import json
 st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="centered")
 
 st.title("🌾 Makkah Rice Traders - Order Portal")
-st.markdown("Dukandaron ke liye digital ordering system. Aap yahan se apni pasand ki variety aur quantity select karke order place kar sakte hain.")
+st.markdown("Dukandaron ke liye digital ordering system.")
+
+# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
+OWNER_WHATSAPP_NUMBER = "923187714954"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
-# CONFIGURATIONS
-# -------------------------------------------------------------
-OWNER_WHATSAPP_NUMBER = "923187714954"  # <--- Apna WhatsApp number yahan dalein
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhG94yjtlAV6Dm4PAl_h1KA1XVfBuOVjCguHUUyaWhaCF86vqEESOuEkyHZAzwMUs/exec"  # <--- Apps Script Web App URL yahan dalein
-ADMIN_TOKEN = "makkah786pass"  # <--- Same Secret Token jo Apps Script mein dala hai
-
-# -------------------------------------------------------------
-# GOOGLE SHEETS CONNECTION (For Rates Fetching)
+# GOOGLE SHEETS CONNECTION
 # -------------------------------------------------------------
 @st.cache_resource
 def init_google_sheet():
@@ -37,6 +33,7 @@ def init_google_sheet():
 try:
     gc = init_google_sheet()
     rates_sheet = gc.worksheet("Rates")
+    orders_sheet = gc.worksheet("Orders")
 except Exception as e:
     st.error(f"Database Connection Error: {e}")
     st.info("Baraye meharbani Streamlit secrets mein Google Sheets ki JSON credentials configure karein.")
@@ -90,7 +87,7 @@ with st.form("order_form"):
     submit_btn = st.form_submit_button("🚀 Submit Order via WhatsApp")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & SECURE LINK GENERATION
+# ORDER SUBMISSION & CLEAN WHATSAPP MESSAGE
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -103,41 +100,22 @@ if submit_btn:
         
         grand_total = 0
         
-        # WhatsApp Message Format
+        # Clean WhatsApp Message (No links inside)
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
         wa_message += f"⏰ *Time (PKT):* {current_time}\n\n"
         wa_message += f"*Items Ordered:*\n"
         
-        script_items = []
         for item in selected_items:
             grand_total += item["total"]
             wa_message += f"- {item['quality']}: {item['quantity']} Bags (Rs. {item['total']:,})\n"
-            script_items.append({
-                "quality": item['quality'],
-                "quantity": item['quantity'],
-                "total": item['total']
-            })
         
-        wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*\n"
+        wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*"
         
-        # Security Token ke sath Secret Link
-        params = {
-            "key": ADMIN_TOKEN,  # Admin token
-            "time": current_time,
-            "shop": shop_name,
-            "phone": phone_number,
-            "items": json.dumps(script_items)
-        }
-        confirm_link = f"{GOOGLE_SCRIPT_URL}?{urllib.parse.urlencode(params)}"
-        
-        wa_message += f"\n---------------------------\n"
-        wa_message += f"🔒 *Owner Confirmation Link:* \n{confirm_link}"
+        st.success("🎉 Aapka order generate ho gaya hai! Neeche diye gaye button par click karke owner ko WhatsApp par order bhej dein.")
         
         # Screen Receipt
-        st.success("🎉 Order tayyar hai! Complete karne ke liye neechay diye gaye WhatsApp button par click karein.")
-        
         st.markdown("---")
         st.markdown("### 🧾 **Order Receipt**")
         st.info(f"**Dukan:** {shop_name}  \n**Mobile:** {phone_number}  \n**Order Time (PKT):** {current_time}")
@@ -153,7 +131,7 @@ if submit_btn:
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # Send via WhatsApp Button
+        # WhatsApp Direct Button
         encoded_message = urllib.parse.quote(wa_message)
         whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
         
@@ -166,15 +144,57 @@ if submit_btn:
         """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# ADMIN AREA
+# ADMIN AREA (Password Protected Order Approval Portal)
 # -------------------------------------------------------------
 st.markdown("---")
-with st.expander("🔒 Owner / Admin Area (Rate Management & View)"):
+with st.expander("🔒 Owner / Admin Area (Order Approval & Rates Management)"):
     admin_password = st.text_input("Admin Password Enter Karein:", type="password")
     
     if admin_password == "makkah123":
         st.success("Admin access granted!")
-        st.markdown("### Live Rates Table:")
+        
+        st.markdown("### 📊 Live Rates Table:")
         st.dataframe(df_rates, use_container_width=True)
+        
+        st.markdown("---")
+        st.markdown("### 📥 Approve & Save Order to Google Sheet")
+        st.info("WhatsApp par message dekh kar yahan order ki details enter karein aur save button dabayein.")
+        
+        with st.form("admin_approval_form"):
+            adm_shop = st.text_input("Dukan Ka Naam (Shop Name)")
+            adm_phone = st.text_input("Dukandar ka Mobile Number")
+            adm_quality = st.selectbox("Quality Ordered", df_rates["Quality_Name"].tolist())
+            adm_qty = st.number_input("Quantity (Bags)", min_value=1, max_value=1000, value=1)
+            
+            # Price auto-calculate
+            matched_row = df_rates[df_rates["Quality_Name"] == adm_quality]
+            price_per_bag = int(matched_row["Price_Per_Bag"].values[0]) if not matched_row.empty else 0
+            calc_total = price_per_bag * adm_qty
+            
+            st.write(f"Estimated Price per Bag: Rs. {price_per_bag:,} | **Total Amount: Rs. {calc_total:,}**")
+            
+            approve_btn = st.form_submit_button("✅ Verify & Save Order to Google Sheet")
+            
+        if approve_btn:
+            if not adm_shop or not adm_phone:
+                st.error("Baraye meharbani dukan ka naam aur mobile number likhein!")
+            else:
+                pakistan_tz = pytz.timezone("Asia/Karachi")
+                adm_time = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
+                
+                try:
+                    orders_sheet.append_row([
+                        adm_time,
+                        adm_shop,
+                        adm_phone,
+                        adm_quality,
+                        adm_qty,
+                        calc_total
+                    ])
+                    st.success(f"🎉 Order kamyabi se Google Sheet ke 'Orders' tab mein save ho gaya hai!")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Google Sheet mein save karne mein masla hua: {e}")
+                    
     elif admin_password != "":
         st.error("Ghalat password! Baraye meharbani theek password enter karein.")
