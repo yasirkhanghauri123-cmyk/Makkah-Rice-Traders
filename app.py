@@ -14,7 +14,7 @@ st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="c
 st.title("🌾 Makkah Rice Traders - Order Portal")
 st.markdown("Dukandaron ke liye digital ordering system.")
 
-# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
+# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath, e.g., 923001234567)
 OWNER_WHATSAPP_NUMBER = "923177107295"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
@@ -83,10 +83,10 @@ with st.form("order_form"):
             st.markdown(f"~~{q_name}~~ *(Out of Stock)*")
 
     st.markdown("---")
-    submit_btn = st.form_submit_button("🚀 Submit Order via WhatsApp")
+    submit_btn = st.form_submit_button("🚀 Generate Order Bill")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & CLEAN WHATSAPP MESSAGE
+# ORDER SUBMISSION & MESSAGE GENERATION
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -99,7 +99,7 @@ if submit_btn:
         
         grand_total = 0
         
-        # Clean WhatsApp Message
+        # WhatsApp Message Content
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
@@ -112,9 +112,9 @@ if submit_btn:
         
         wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*"
         
-        st.success("🎉 Aapka order generate ho gaya hai! Neeche diye gaye button par click karke owner ko WhatsApp par order bhej dein.")
+        st.success("🎉 Aapka order tayyar hai! Neeche diye gaye tareeqay se WhatsApp par bhej dein:")
         
-        # Screen Receipt
+        # Screen Receipt Display
         st.markdown("---")
         st.markdown("### 🧾 **Order Receipt**")
         st.info(f"**Dukan:** {shop_name}  \n**Mobile:** {phone_number}  \n**Order Time (PKT):** {current_time}")
@@ -130,17 +130,18 @@ if submit_btn:
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # WhatsApp Native Link Button (Optimized for Mobile APK & Browsers)
+        # 1. Direct Web/App Link Button (Universal HTML Intent)
         encoded_message = urllib.parse.quote(wa_message)
         whatsapp_url = f"https://api.whatsapp.com/send?phone={OWNER_WHATSAPP_NUMBER}&text={encoded_message}"
         
-        st.markdown("### 📲 Order Bhejne Ke Liye Niche Click Karein:")
-        st.link_button("🚀 Click Here to Send on WhatsApp", whatsapp_url, use_container_width=True)
+        st.markdown("---")
+        st.markdown("#### Option 1: Direct WhatsApp Button")
+        st.link_button("📲 Click to Open WhatsApp Chat", whatsapp_url, use_container_width=True)
         
-        # Extra Safety Fallback: Text copy option agar app mein link open na ho
-        with st.expander("📋 Agar WhatsApp button kaam na kare to yahan se text copy kar lein"):
-            st.text_area("Order Text:", value=wa_message, height=150)
-            st.info("Aap upar diye gaye text ko copy karke seedha owner ke WhatsApp par bhej sakte hain.")
+        # 2. Foolproof Fallback Box (Guaranteed working on all APKs)
+        st.markdown("#### Option 2: Copy Message Box (Agar button kaam na kare)")
+        st.warning("Mobile app ki restriction ki wajah se agar upar wala button kaam na kare, toh yeh text copy karke seedha owner ke WhatsApp par paste kar dein:")
+        st.text_area("Order Text (Copy this):", value=wa_message, height=160)
 
 # -------------------------------------------------------------
 # ADMIN AREA (Password Protected Order Approval Portal)
