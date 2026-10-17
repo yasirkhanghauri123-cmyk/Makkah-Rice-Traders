@@ -130,11 +130,17 @@ if submit_btn:
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # WhatsApp Native Link Button (Works perfectly inside Mobile APK & Browsers)
+        # WhatsApp Native Link Button (Optimized for Mobile APK & Browsers)
         encoded_message = urllib.parse.quote(wa_message)
-        whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
+        whatsapp_url = f"https://api.whatsapp.com/send?phone={OWNER_WHATSAPP_NUMBER}&text={encoded_message}"
         
-        st.link_button("📲 Send Order to Owner on WhatsApp", whatsapp_url, use_container_width=True)
+        st.markdown("### 📲 Order Bhejne Ke Liye Niche Click Karein:")
+        st.link_button("🚀 Click Here to Send on WhatsApp", whatsapp_url, use_container_width=True)
+        
+        # Extra Safety Fallback: Text copy option agar app mein link open na ho
+        with st.expander("📋 Agar WhatsApp button kaam na kare to yahan se text copy kar lein"):
+            st.text_area("Order Text:", value=wa_message, height=150)
+            st.info("Aap upar diye gaye text ko copy karke seedha owner ke WhatsApp par bhej sakte hain.")
 
 # -------------------------------------------------------------
 # ADMIN AREA (Password Protected Order Approval Portal)
