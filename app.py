@@ -17,7 +17,6 @@ st.markdown("Dukandaron ke liye digital ordering system. Aap yahan se apni pasan
 # -------------------------------------------------------------
 @st.cache_resource
 def init_google_sheet():
-    # Streamlit secrets se credentials uthayega (Neeche step bataya gaya hai)
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_dict = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -87,7 +86,7 @@ with st.form("order_form"):
     submit_btn = st.form_submit_button("🚀 Place Order Now")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION LOGIC
+# ORDER SUBMISSION & BILL GENERATION LOGIC
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -115,14 +114,45 @@ if submit_btn:
             for row in order_rows_to_save:
                 orders_sheet.append_row(row)
             
-            st.success(f"🎉 Shukriya! Aapka order kamyabi se record ho gaya hai. Grand Total: Rs. {grand_total:,}")
+            st.success("🎉 Shukriya! Aapka order kamyabi se place ho gaya hai.")
             st.balloons()
+            
+            # -------------------------------------------------------------
+            # DIGITAL BILL / RECEIPT DISPLAY FOR CUSTOMER
+            # -------------------------------------------------------------
+            st.markdown("---")
+            st.markdown("### 🧾 **Makkah Rice Traders - Order Receipt**")
+            st.info(f"**Dukan Ka Naam:** {shop_name}  \n**Mobile Number:** {phone_number}  \n**Order Time:** {current_time}")
+            
+            receipt_list = []
+            for item in selected_items:
+                receipt_list.append({
+                    "Quality Name": item["quality"],
+                    "Price / Bag (Rs.)": f"{item['price_per_bag']:,}",
+                    "Bags": item["quantity"],
+                    "Total (Rs.)": f"{item['total']:,}"
+                })
+            
+            df_receipt = pd.DataFrame(receipt_list)
+            st.table(df_receipt)
+            
+            st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
+            st.success("Aapka yeh order record kar liya gaya hai aur Owner ki Google Sheet par chala gaya hai!")
+            
         except Exception as e:
             st.error(f"Order save karne mein masla hua: {e}")
 
 # -------------------------------------------------------------
-# ADMIN VIEW (Rates Check Karne Ke Liye)
+# ADMIN AREA (Password Protected - Hidden from normal customers)
 # -------------------------------------------------------------
-with st.expander("🔒 Owner / Admin Area (Current Rates View)"):
-    st.markdown("Aap apni **Google Sheet** (`Makkah_Rice_Database`) mein ja kar jab chahein rates change kar sakte hain ya nayi qualities add kar sakte hain. Yahan live rates show ho rahe hain:")
-    st.dataframe(df_rates, use_container_width=True)
+st.markdown("---")
+with st.expander("🔒 Owner / Admin Area (Rate Management & View)"):
+    admin_password = st.text_input("Admin Password Enter Karein:", type="password")
+    
+    # Aap apna password yahan change kar sakte hain (abhi 'makkah123' set hai)
+    if admin_password == "makkah123":
+        st.success("Admin access granted!")
+        st.markdown("Aap apni **Google Sheet** (`Makkah_Rice_Database`) mein ja kar jab chahein rates change kar sakte hain ya qualities barha sakte hain. Yahan live rates show ho rahe hain:")
+        st.dataframe(df_rates, use_container_width=True)
+    elif admin_password != "":
+        st.error("Ghalat password! Baraye meharbani theek password enter karein.")
