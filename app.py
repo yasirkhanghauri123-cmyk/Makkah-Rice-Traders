@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -86,7 +87,7 @@ with st.form("order_form"):
     submit_btn = st.form_submit_button("🚀 Place Order Now")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & BILL GENERATION LOGIC
+# ORDER SUBMISSION & BILL GENERATION LOGIC (PAKISTAN TIME)
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -94,7 +95,10 @@ if submit_btn:
     elif len(selected_items) == 0:
         st.warning("Kam az kam ek quality ke bags ki quantity select karein.")
     else:
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Pakistan Timezone (PKT) set karna
+        pakistan_tz = pytz.timezone("Asia/Karachi")
+        current_time = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
+        
         order_rows_to_save = []
         grand_total = 0
         
@@ -122,7 +126,7 @@ if submit_btn:
             # -------------------------------------------------------------
             st.markdown("---")
             st.markdown("### 🧾 **Makkah Rice Traders - Order Receipt**")
-            st.info(f"**Dukan Ka Naam:** {shop_name}  \n**Mobile Number:** {phone_number}  \n**Order Time:** {current_time}")
+            st.info(f"**Dukan Ka Naam:** {shop_name}  \n**Mobile Number:** {phone_number}  \n**Order Time (PKT):** {current_time}")
             
             receipt_list = []
             for item in selected_items:
@@ -149,10 +153,9 @@ st.markdown("---")
 with st.expander("🔒 Owner / Admin Area (Rate Management & View)"):
     admin_password = st.text_input("Admin Password Enter Karein:", type="password")
     
-    # Aap apna password yahan change kar sakte hain (abhi 'makkah123' set hai)
     if admin_password == "makkah123":
         st.success("Admin access granted!")
-        st.markdown("Aap apni **Google Sheet** (`Makkah_Rice_Database`) mein ja kar jab chahein rates change kar sakte hain ya qualities barha sakte hain. Yahan live rates show ho rahe hain:")
+        st.markdown("Aap apni **Google Sheet** (`Makkah_Rice_Database`) mein ja kar jab chahein rates change kar sakte hain ya qualities barha sakte hain. Yahan live rates show ho rahe ہیں:")
         st.dataframe(df_rates, use_container_width=True)
     elif admin_password != "":
         st.error("Ghalat password! Baraye meharbani theek password enter karein.")
