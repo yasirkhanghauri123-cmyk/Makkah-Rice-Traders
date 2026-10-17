@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -9,64 +8,15 @@ import urllib.parse
 import json
 
 # -------------------------------------------------------------
-# PAGE CONFIGURATION (Custom Name & Custom Icon)
+# PAGE CONFIGURATION
 # -------------------------------------------------------------
-st.set_page_config(
-    page_title="Makkah Rice Traders", 
-    page_icon="🌾", 
-    layout="centered"
-)
-
-# -------------------------------------------------------------
-# CUSTOM PWA MANIFEST (For Custom Name & Icon on Mobile App Install)
-# -------------------------------------------------------------
-pwa_script = """
-<script>
-    var links = document.getElementsByTagName('link');
-    for (var i = 0; i < links.length; i++) {
-        if (links[i].rel === 'manifest') {
-            links[i].parentNode.removeChild(links[i]);
-        }
-    }
-
-    const myManifest = {
-      "name": "Makkah Rice Traders",
-      "short_name": "Makkah Rice",
-      "start_url": ".",
-      "display": "standalone",
-      "background_color": "#ffffff",
-      "theme_color": "#25D366",
-      "icons": [
-        {
-          "src": "https://img.icons8.com/color/192/rice-bag.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        },
-        {
-          "src": "https://github.com/yasirkhanghauri123-cmyk/Makkah-Rice-Traders/blob/main/Makkah%20Rice%20Traders.png",
-          "sizes": "512x512",
-          "type": "image/png"
-        }
-      ]
-    };
-
-    const stringManifest = JSON.stringify(myManifest);
-    const blob = new Blob([stringManifest], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
-
-    var link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = manifestURL;
-    document.getElementsByTagName('head')[0].appendChild(link);
-</script>
-"""
-components.html(pwa_script, height=0, width=0)
+st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="centered")
 
 st.title("🌾 Makkah Rice Traders - Order Portal")
 st.markdown("Dukandaron ke liye digital ordering system.")
 
 # APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
-OWNER_WHATSAPP_NUMBER = "923000000000"  # <--- Yahan apna asal WhatsApp number likhein
+OWNER_WHATSAPP_NUMBER = "923176136262"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
 # GOOGLE SHEETS CONNECTION
@@ -150,7 +100,7 @@ if submit_btn:
         
         grand_total = 0
         
-        # Clean WhatsApp Message
+        # Clean WhatsApp Message (No links inside)
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
