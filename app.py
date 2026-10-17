@@ -1,21 +1,72 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import urllib.parse
+import json
 
 # -------------------------------------------------------------
-# PAGE CONFIGURATION
+# PAGE CONFIGURATION (Custom Name & Custom Icon)
 # -------------------------------------------------------------
-st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="centered")
+st.set_page_config(
+    page_title="Makkah Rice Traders", 
+    page_icon="🌾", 
+    layout="centered"
+)
+
+# -------------------------------------------------------------
+# CUSTOM PWA MANIFEST (For Custom Name & Icon on Mobile App Install)
+# -------------------------------------------------------------
+pwa_script = """
+<script>
+    var links = document.getElementsByTagName('link');
+    for (var i = 0; i < links.length; i++) {
+        if (links[i].rel === 'manifest') {
+            links[i].parentNode.removeChild(links[i]);
+        }
+    }
+
+    const myManifest = {
+      "name": "Makkah Rice Traders",
+      "short_name": "Makkah Rice",
+      "start_url": ".",
+      "display": "standalone",
+      "background_color": "#ffffff",
+      "theme_color": "#25D366",
+      "icons": [
+        {
+          "src": "https://img.icons8.com/color/192/rice-bag.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "https://github.com/yasirkhanghauri123-cmyk/Makkah-Rice-Traders/blob/main/Makkah%20Rice%20Traders.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
+    };
+
+    const stringManifest = JSON.stringify(myManifest);
+    const blob = new Blob([stringManifest], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+
+    var link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.getElementsByTagName('head')[0].appendChild(link);
+</script>
+"""
+components.html(pwa_script, height=0, width=0)
 
 st.title("🌾 Makkah Rice Traders - Order Portal")
 st.markdown("Dukandaron ke liye digital ordering system.")
 
-# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath, e.g., 923001234567)
-OWNER_WHATSAPP_NUMBER = "923177107295"  # <--- Yahan apna asal WhatsApp number likhein
+# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
+OWNER_WHATSAPP_NUMBER = "923000000000"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
 # GOOGLE SHEETS CONNECTION
@@ -83,10 +134,10 @@ with st.form("order_form"):
             st.markdown(f"~~{q_name}~~ *(Out of Stock)*")
 
     st.markdown("---")
-    submit_btn = st.form_submit_button("🚀 Generate Order Bill")
+    submit_btn = st.form_submit_button("🚀 Submit Order via WhatsApp")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & MESSAGE GENERATION
+# ORDER SUBMISSION & CLEAN WHATSAPP MESSAGE
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -99,7 +150,7 @@ if submit_btn:
         
         grand_total = 0
         
-        # WhatsApp Message Content
+        # Clean WhatsApp Message
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
@@ -112,9 +163,9 @@ if submit_btn:
         
         wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*"
         
-        st.success("🎉 Aapka order tayyar hai! Neeche diye gaye tareeqay se WhatsApp par bhej dein:")
+        st.success("🎉 Aapka order generate ho gaya hai! Neeche diye gaye button par click karke owner ko WhatsApp par order bhej dein.")
         
-        # Screen Receipt Display
+        # Screen Receipt
         st.markdown("---")
         st.markdown("### 🧾 **Order Receipt**")
         st.info(f"**Dukan:** {shop_name}  \n**Mobile:** {phone_number}  \n**Order Time (PKT):** {current_time}")
@@ -130,18 +181,17 @@ if submit_btn:
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # 1. Direct Web/App Link Button (Universal HTML Intent)
+        # WhatsApp Direct Button
         encoded_message = urllib.parse.quote(wa_message)
-        whatsapp_url = f"https://api.whatsapp.com/send?phone={OWNER_WHATSAPP_NUMBER}&text={encoded_message}"
+        whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
         
-        st.markdown("---")
-        st.markdown("#### Option 1: Direct WhatsApp Button")
-        st.link_button("📲 Click to Open WhatsApp Chat", whatsapp_url, use_container_width=True)
-        
-        # 2. Foolproof Fallback Box (Guaranteed working on all APKs)
-        st.markdown("#### Option 2: Copy Message Box (Agar button kaam na kare)")
-        st.warning("Mobile app ki restriction ki wajah se agar upar wala button kaam na kare, toh yeh text copy karke seedha owner ke WhatsApp par paste kar dein:")
-        st.text_area("Order Text (Copy this):", value=wa_message, height=160)
+        st.markdown(f"""
+            <a href="{whatsapp_url}" target="_blank">
+                <button style="background-color: #25D366; color: white; padding: 14px 20px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px;">
+                    📲 Send Order to Owner on WhatsApp
+                </button>
+            </a>
+        """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # ADMIN AREA (Password Protected Order Approval Portal)
