@@ -18,11 +18,12 @@ st.markdown("Dukandaron ke liye digital ordering system. Aap yahan se apni pasan
 # -------------------------------------------------------------
 # CONFIGURATIONS
 # -------------------------------------------------------------
-OWNER_WHATSAPP_NUMBER = "923187714954"  # <--- Yahan apna WhatsApp number likhein
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhG7uSpgv90bWQCHr19kjZutektLctBsjn4AYU7h-dfmVvlFGrUkviQQkzT2-iQ8M4/exec"  # <--- Google Apps Script Web App URL yahan dalein
+OWNER_WHATSAPP_NUMBER = "923187714954"  # <--- Apna WhatsApp number yahan dalein
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhG94yjtlAV6Dm4PAl_h1KA1XVfBuOVjCguHUUyaWhaCF86vqEESOuEkyHZAzwMUs/exec"  # <--- Apps Script Web App URL yahan dalein
+ADMIN_TOKEN = "makkah786pass"  # <--- Same Secret Token jo Apps Script mein dala hai
 
 # -------------------------------------------------------------
-# GOOGLE SHEETS CONNECTION
+# GOOGLE SHEETS CONNECTION (For Rates Fetching)
 # -------------------------------------------------------------
 @st.cache_resource
 def init_google_sheet():
@@ -89,7 +90,7 @@ with st.form("order_form"):
     submit_btn = st.form_submit_button("🚀 Submit Order via WhatsApp")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & WHATSAPP MESSAGE GENERATION
+# ORDER SUBMISSION & SECURE LINK GENERATION
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -102,11 +103,11 @@ if submit_btn:
         
         grand_total = 0
         
-        # WhatsApp Clean Message Format
+        # WhatsApp Message Format
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
-        wa_message += f"⏰ *Time:* {current_time}\n\n"
+        wa_message += f"⏰ *Time (PKT):* {current_time}\n\n"
         wa_message += f"*Items Ordered:*\n"
         
         script_items = []
@@ -121,8 +122,9 @@ if submit_btn:
         
         wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*\n"
         
-        # Owner Confirmation Link at bottom of message
+        # Security Token ke sath Secret Link
         params = {
+            "key": ADMIN_TOKEN,  # Admin token
             "time": current_time,
             "shop": shop_name,
             "phone": phone_number,
@@ -131,10 +133,10 @@ if submit_btn:
         confirm_link = f"{GOOGLE_SCRIPT_URL}?{urllib.parse.urlencode(params)}"
         
         wa_message += f"\n---------------------------\n"
-        wa_message += f"⚙️ *Owner Approval Link:* \n{confirm_link}"
+        wa_message += f"🔒 *Owner Confirmation Link:* \n{confirm_link}"
         
         # Screen Receipt
-        st.success("🎉 Order generate ho chuka hai! Complete karne ke liye neechay diye gaye WhatsApp button par click karein.")
+        st.success("🎉 Order tayyar hai! Complete karne ke liye neechay diye gaye WhatsApp button par click karein.")
         
         st.markdown("---")
         st.markdown("### 🧾 **Order Receipt**")
