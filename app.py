@@ -5,7 +5,6 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import urllib.parse
-import json
 
 # -------------------------------------------------------------
 # PAGE CONFIGURATION
@@ -13,7 +12,7 @@ import json
 st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="centered")
 
 st.title("🌾 Makkah Rice Traders - Order Portal")
-st.markdown("Dukandaron ke liye digital ordering system.")
+st.markdown("Dukandaron ke liye digital ordering system. Apni pasand ki variety aur quantity select karein.")
 
 # APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
 OWNER_WHATSAPP_NUMBER = "923176136262"  # <--- Yahan apna asal WhatsApp number likhein
@@ -48,7 +47,7 @@ if df_rates.empty:
     st.stop()
 
 # -------------------------------------------------------------
-# CUSTOMER ORDER FORM
+# CUSTOMER ORDER FORM WITH IMAGES
 # -------------------------------------------------------------
 st.subheader("📝 New Order Form")
 
@@ -57,7 +56,7 @@ with st.form("order_form"):
     phone_number = st.text_input("Mobile Number / WhatsApp Number*")
     
     st.markdown("---")
-    st.markdown("### Chawal Ki Qualities Aur Quantity Select Karein:")
+    st.markdown("### Chawal Ki Qualities, Tasweer Aur Quantity Select Karein:")
     
     selected_items = []
     
@@ -65,13 +64,24 @@ with st.form("order_form"):
         q_name = row["Quality_Name"]
         q_price = row["Price_Per_Bag"]
         in_stock = str(row["In_Stock"]).strip().capitalize()
+        # Sheet mein agar Image_URL ka column ho toh fetch karega, warna khali chhor dega
+        img_url = row.get("Image_URL", "") 
         
         if in_stock == "Yes":
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.markdown(f"**{q_name}**  \n*Rs. {q_price:,} / Bag*")
-            with col2:
-                qty = st.number_input(f"Bags ({q_name})", min_value=0, max_value=1000, value=0, key=f"qty_{index}")
+            col_img, col_info, col_qty = st.columns([1, 2, 1.5])
+            
+            with col_img:
+                if img_url and str(img_url).startswith("http"):
+                    st.image(img_url, width=80)
+                else:
+                    st.markdown("🌾 *No Image*")
+                    
+            with col_info:
+                st.markdown(f"**{q_name}**")
+                st.markdown(f"*Rs. {q_price:,} / Bag*")
+                
+            with col_qty:
+                qty = st.number_input(f"Bags", min_value=0, max_value=1000, value=0, key=f"qty_{index}")
                 
             if qty > 0:
                 selected_items.append({
@@ -80,14 +90,15 @@ with st.form("order_form"):
                     "quantity": qty,
                     "total": q_price * qty
                 })
+            st.markdown("---")
         else:
             st.markdown(f"~~{q_name}~~ *(Out of Stock)*")
+            st.markdown("---")
 
-    st.markdown("---")
     submit_btn = st.form_submit_button("🚀 Submit Order via WhatsApp")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & CLEAN WHATSAPP MESSAGE
+# ORDER SUBMISSION & WHATSAPP MESSAGE
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -100,7 +111,6 @@ if submit_btn:
         
         grand_total = 0
         
-        # Clean WhatsApp Message (No links inside)
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
@@ -128,10 +138,11 @@ if submit_btn:
                 "Bags": item["quantity"],
                 "Total (Rs.)": f"{item['total']:,}"
             })
+            
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # WhatsApp Direct Button
+        # WhatsApp Button
         encoded_message = urllib.parse.quote(wa_message)
         whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
         
@@ -144,7 +155,7 @@ if submit_btn:
         """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# ADMIN AREA (Password Protected Order Approval Portal)
+# ADMIN AREA (Order Approval & Rates Management)
 # -------------------------------------------------------------
 st.markdown("---")
 with st.expander("🔒 Owner / Admin Area (Order Approval & Rates Management)"):
@@ -166,7 +177,6 @@ with st.expander("🔒 Owner / Admin Area (Order Approval & Rates Management)"):
             adm_quality = st.selectbox("Quality Ordered", df_rates["Quality_Name"].tolist())
             adm_qty = st.number_input("Quantity (Bags)", min_value=1, max_value=1000, value=1)
             
-            # Price auto-calculate
             matched_row = df_rates[df_rates["Quality_Name"] == adm_quality]
             price_per_bag = int(matched_row["Price_Per_Bag"].values[0]) if not matched_row.empty else 0
             calc_total = price_per_bag * adm_qty
