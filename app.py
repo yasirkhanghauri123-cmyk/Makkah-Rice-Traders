@@ -14,8 +14,8 @@ st.set_page_config(page_title="Makkah Rice Traders", page_icon="🌾", layout="c
 st.title("🌾 Makkah Rice Traders - Order Portal")
 st.markdown("Dukandaron ke liye digital ordering system. Aap yahan se apni pasand ki variety aur quantity select karke order place kar sakte hain.")
 
-# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath, misal ke taur par: 923001234567)
-OWNER_WHATSAPP_NUMBER = "923177107295"  # <--- Yahan apna number likh dein
+# APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath, e.g., 923001234567)
+OWNER_WHATSAPP_NUMBER = "923177107295"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
 # GOOGLE SHEETS CONNECTION
@@ -33,24 +33,26 @@ try:
     gc = init_google_sheet()
     rates_sheet = gc.worksheet("Rates")
     orders_sheet = gc.worksheet("Orders")
-    shops_sheet = gc.worksheet("Shops")
 except Exception as e:
     st.error(f"Database Connection Error: {e}")
     st.info("Baraye meharbani Streamlit secrets mein Google Sheets ki JSON credentials configure karein.")
     st.stop()
 
 # -------------------------------------------------------------
-# FETCH LIVE RATES & SHOPS DATA
+# FETCH LIVE RATES FROM GOOGLE SHEET
 # -------------------------------------------------------------
 data = rates_sheet.get_all_records()
 df_rates = pd.DataFrame(data)
 
-shops_data = shops_sheet.get_all_records()
-df_shops = pd.DataFrame(shops_data)
-
 if df_rates.empty:
     st.warning("Filhal koi rice quality available nahi hai. Baraye meharbani Google Sheet mein rates update karein.")
     st.stop()
+
+# Session State for tracking verification
+if "order_prepared" not in st.session_state:
+    st.session_state.order_prepared = False
+if "pending_order_data" not in st.session_state:
+    st.session_state.pending_order_data = None
 
 # -------------------------------------------------------------
 # CUSTOMER ORDER FORM
@@ -89,10 +91,10 @@ with st.form("order_form"):
             st.markdown(f"~~{q_name}~~ *(Out of Stock)*")
 
     st.markdown("---")
-    submit_btn = st.form_submit_button("🚀 Verify & Send Order via WhatsApp")
+    submit_btn = st.form_submit_button("📲 Generate WhatsApp Order Bill")
 
 # -------------------------------------------------------------
-# ORDER SUBMISSION & WHATSAPP VERIFICATION LOGIC
+# STEP 1: GENERATE WHATSAPP MESSAGE (NO SHEET SAVE YET)
 # -------------------------------------------------------------
 if submit_btn:
     if not shop_name or not phone_number:
@@ -100,65 +102,103 @@ if submit_btn:
     elif len(selected_items) == 0:
         st.warning("Kam az kam ek quality ke bags ki quantity select karein.")
     else:
-        # Check if phone number is registered in Shops tab
-        registered_phones = [str(p).strip() for p in df_shops["Phone_Number"].astype(str)]
-        clean_input_phone = str(phone_number).strip()
+        pakistan_tz = pytz.timezone("Asia/Karachi")
+        current_time = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
         
-        if clean_input_phone not in registered_phones:
-            st.error("❌ Yeh mobile number registered nahi hai! Sirf authorized dukandar hi order de sakte hain. Baraye meharbani owner se rabta karein.")
-        else:
-            pakistan_tz = pytz.timezone("Asia/Karachi")
-            current_time = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
+        grand_total = 0
+        order_rows_to_save = []
+        
+        wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
+        wa_message += f"🏢 *Dukan:* {shop_name}\n"
+        wa_message += f"📞 *Number:* {phone_number}\n"
+        wa_message += f"⏰ *Time:* {current_time}\n\n"
+        wa_message += f"*Items Ordered:*\n"
+        
+        for item in selected_items:
+            grand_total += item["total"]
+            wa_message += f"- {item['quality']}: {item['quantity']} Bags (Rs. {item['total']:,})\n"
             
-            grand_total = 0
-            order_rows_to_save = []
-            
-            # WhatsApp message ke liye text banana
-            wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
-            wa_message += f"🏢 *Dukan:* {shop_name}\n"
-            wa_message += f"📞 *Number:* {phone_number}\n"
-            wa_message += f"⏰ *Time:* {current_time}\n\n"
-            wa_message += f"*Items Ordered:*\n"
-            
-            for item in selected_items:
-                grand_total += item["total"]
-                wa_message += f"- {item['quality']}: {item['quantity']} Bags (Rs. {item['total']:,})\n"
-                
-                order_rows_to_save.append([
-                    current_time,
-                    shop_name,
-                    phone_number,
-                    item["quality"],
-                    item["quantity"],
-                    item["total"]
-                ])
-            
-            wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*"
-            
-            # Google Sheet mein automatically save karna
-            try:
-                for row in order_rows_to_save:
-                    orders_sheet.append_row(row)
-                
-                st.success("🎉 Aapka order record ho gaya hai! Ab apna order WhatsApp par confirm karne ke liye neechay diye gaye button par click karein.")
-                
-                # WhatsApp Web/App open karne ke liye link generate karna
-                encoded_message = urllib.parse.quote(wa_message)
-                whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
-                
-                st.markdown(f"""
-                    <a href="{whatsapp_url}" target="_blank">
-                        <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%;">
-                            📲 Send Order to Owner on WhatsApp
-                        </button>
-                    </a>
-                """, unsafe_allow_html=True)
-                
-            except Exception as e:
-                st.error(f"Order save karne mein masla hua: {e}")
+            order_rows_to_save.append([
+                current_time,
+                shop_name,
+                phone_number,
+                item["quality"],
+                item["quantity"],
+                item["total"]
+            ])
+        
+        wa_message += f"\n💰 *Grand Total: Rs. {grand_total:,}*"
+        
+        # Save order temporary in session (Not in Google Sheet yet)
+        st.session_state.pending_order_data = {
+            "rows": order_rows_to_save,
+            "wa_message": wa_message,
+            "shop_name": shop_name,
+            "phone_number": phone_number,
+            "current_time": current_time,
+            "selected_items": selected_items,
+            "grand_total": grand_total
+        }
+        st.session_state.order_prepared = True
 
 # -------------------------------------------------------------
-# ADMIN AREA
+# STEP 2: DISPLAY RECEIPT & WHATSAPP CONFIRMATION BUTTON
+# -------------------------------------------------------------
+if st.session_state.order_prepared and st.session_state.pending_order_data:
+    order_data = st.session_state.pending_order_data
+    
+    st.markdown("---")
+    st.markdown("### 🧾 **Order Receipt**")
+    st.info(f"**Dukan:** {order_data['shop_name']}  \n**Mobile:** {order_data['phone_number']}  \n**Order Time (PKT):** {order_data['current_time']}")
+    
+    receipt_list = []
+    for item in order_data['selected_items']:
+        receipt_list.append({
+            "Quality Name": item["quality"],
+            "Price / Bag (Rs.)": f"{item['price_per_bag']:,}",
+            "Bags": item["quantity"],
+            "Total (Rs.)": f"{item['total']:,}"
+        })
+    st.table(pd.DataFrame(receipt_list))
+    st.markdown(f"### 💰 **Grand Total: Rs. {order_data['grand_total']:,}**")
+    
+    encoded_message = urllib.parse.quote(order_data['wa_message'])
+    whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
+    
+    st.warning("⚠️ **Aapka order abhi tak final nahi hua!** Pehle neechay diye gaye button par click karke Owner ko WhatsApp par order bhejein, phir 'Confirm & Save Order' dabayein.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"""
+            <a href="{whatsapp_url}" target="_blank">
+                <button style="background-color: #25D366; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%;">
+                    📲 1. Send Order via WhatsApp
+                </button>
+            </a>
+        """, unsafe_allow_html=True)
+        
+    with col2:
+        confirm_save = st.button("✅ 2. Confirm Order Saved in Database")
+
+    # Save to Sheet ONLY after pressing Confirm/Send
+    if confirm_save:
+        try:
+            for row in order_data["rows"]:
+                orders_sheet.append_row(row)
+            
+            st.success("🎉 Mubarak ho! Aapka order kamyabi se owner ko chala gaya hai aur Google Sheet mein save ho chuka hai.")
+            st.balloons()
+            
+            # Reset session state
+            st.session_state.order_prepared = False
+            st.session_state.pending_order_data = None
+            
+        except Exception as e:
+            st.error(f"Google Sheet mein save karne mein masla aaya: {e}")
+
+# -------------------------------------------------------------
+# ADMIN AREA (Password Protected)
 # -------------------------------------------------------------
 st.markdown("---")
 with st.expander("🔒 Owner / Admin Area (Rate Management & View)"):
@@ -168,7 +208,5 @@ with st.expander("🔒 Owner / Admin Area (Rate Management & View)"):
         st.success("Admin access granted!")
         st.markdown("### Live Rates Table:")
         st.dataframe(df_rates, use_container_width=True)
-        st.markdown("### Registered Shops Table:")
-        st.dataframe(df_shops, use_container_width=True)
     elif admin_password != "":
         st.error("Ghalat password! Baraye meharbani theek password enter karein.")
