@@ -5,7 +5,6 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import urllib.parse
-import json
 
 # -------------------------------------------------------------
 # PAGE CONFIGURATION
@@ -16,7 +15,7 @@ st.title("🌾 Makkah Rice Traders - Order Portal")
 st.markdown("Dukandaron ke liye digital ordering system.")
 
 # APNA WHATSAPP NUMBER YAHAN LIKHEIN (Country code ke sath)
-OWNER_WHATSAPP_NUMBER = "923187714954"  # <--- Yahan apna asal WhatsApp number likhein
+OWNER_WHATSAPP_NUMBER = "923177107295"  # <--- Yahan apna asal WhatsApp number likhein
 
 # -------------------------------------------------------------
 # GOOGLE SHEETS CONNECTION
@@ -100,7 +99,7 @@ if submit_btn:
         
         grand_total = 0
         
-        # Clean WhatsApp Message (No links inside)
+        # Clean WhatsApp Message
         wa_message = f"🌾 *NEW ORDER - Makkah Rice Traders*\n\n"
         wa_message += f"🏢 *Dukan:* {shop_name}\n"
         wa_message += f"📞 *Number:* {phone_number}\n"
@@ -131,17 +130,11 @@ if submit_btn:
         st.table(pd.DataFrame(receipt_list))
         st.markdown(f"### 💰 **Grand Total: Rs. {grand_total:,}**")
         
-        # WhatsApp Direct Button
+        # WhatsApp Native Link Button (Works perfectly inside Mobile APK & Browsers)
         encoded_message = urllib.parse.quote(wa_message)
         whatsapp_url = f"https://wa.me/{OWNER_WHATSAPP_NUMBER}?text={encoded_message}"
         
-        st.markdown(f"""
-            <a href="{whatsapp_url}" target="_blank">
-                <button style="background-color: #25D366; color: white; padding: 14px 20px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px;">
-                    📲 Send Order to Owner on WhatsApp
-                </button>
-            </a>
-        """, unsafe_allow_html=True)
+        st.link_button("📲 Send Order to Owner on WhatsApp", whatsapp_url, use_container_width=True)
 
 # -------------------------------------------------------------
 # ADMIN AREA (Password Protected Order Approval Portal)
